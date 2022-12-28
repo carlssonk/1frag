@@ -1,4 +1,3 @@
-import React, { useRef } from "react";
 import { Sky, Stars } from "@react-three/drei";
 
 export default function Lighting(props: { day: any }) {

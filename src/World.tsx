@@ -21,7 +21,7 @@ export default function World() {
       console.log(worldOctree);
       console.log(world.current);
       const octreeHelper = new OctreeHelper(worldOctree, 0xffff00);
-      octreeHelper.visible = true;
+      octreeHelper.visible = false;
       scene.add(octreeHelper);
     }
   }, [world.current]);
