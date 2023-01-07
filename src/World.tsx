@@ -18,11 +18,11 @@ export default function World() {
   useEffect(() => {
     if (world?.current?.isObject3D) {
       worldOctree.fromGraphNode(world.current);
-      console.log(worldOctree);
-      console.log(world.current);
-      const octreeHelper = new OctreeHelper(worldOctree, 0xffff00);
-      octreeHelper.visible = false;
-      scene.add(octreeHelper);
+      // console.log(worldOctree);
+      // console.log(world.current);
+      // const octreeHelper = new OctreeHelper(worldOctree, 0xffff00);
+      // octreeHelper.visible = false;
+      // scene.add(octreeHelper);
     }
   }, [world.current]);
 
