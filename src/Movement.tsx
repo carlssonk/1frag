@@ -11,7 +11,7 @@ import { usePlayer } from "./player-store";
 const settings = {
   speed: 5,
   player_height: 0.92,
-  jump_height: () => 6.2,
+  jump_height: 6.2,
   damping: 15,
   gravity: 15,
 };
@@ -98,7 +98,7 @@ export const Movement = () => {
     if (store.isGrounded && jump) {
       store.isJumping = true;
       store.shouldSnapToGround = 0;
-      store.velocity.y = settings.jump_height();
+      store.velocity.y = settings.jump_height;
     }
 
     let damping = Math.exp(-settings.damping * delta) - 1;

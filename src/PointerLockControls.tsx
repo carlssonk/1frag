@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { PointerLockControls as PointerLockControlsImpl } from "three-stdlib";
 import _ from "lodash"; // Added this
 import { usePlayer } from "./player-store";
+import { useBindings } from "./bindings-store";
 
 // var debounce_fun = _.debounce(function () {
 //   console.log("Function debounced after 1000ms!");
@@ -41,6 +42,9 @@ export const PointerLockControls = React.forwardRef<PointerLockControlsImpl, Poi
     const explDomElement = (domElement || events.connected || gl.domElement) as HTMLElement;
 
     // Added this
+    const resumeButtonDom = useBindings((state) => state.resumeButtonDom);
+    const setIsPointerLocked = useBindings((state) => state.setIsPointerLocked);
+    // const isPointerLocked = useBindings((state) => state.isPointerLocked);
     const setMouseMoveDelta = usePlayer((state) => state.setMouseMovingDelta);
     const setIsMouseMoving = usePlayer((state) => state.setIsMouseMoving);
     const isMouseMoving = usePlayer((state) => state.isMouseMoving);
@@ -61,11 +65,15 @@ export const PointerLockControls = React.forwardRef<PointerLockControlsImpl, Poi
           store.movingAccumulator += delta * 1000;
         }
       }
+      // console.log(isPointerLocked);
     });
 
     React.useEffect(() => {
       if (enabled) {
         controls.connect(explDomElement);
+        controls.lock();
+        // setRequestLock(controls.lock);
+        // setRequestUnlock(controls.unlock);
         // Force events to be centered while PLC is active
         const oldComputeOffsets = get().events.compute;
         setEvents({
@@ -90,25 +98,39 @@ export const PointerLockControls = React.forwardRef<PointerLockControlsImpl, Poi
     }, [enabled, controls]);
 
     React.useEffect(() => {
-      const callback = (e: THREE.Event) => {
+      const changeCallback = (e: THREE.Event) => {
         invalidate();
         if (onChange) {
           onChange(e);
         }
       };
 
-      controls.addEventListener("change", callback);
+      controls.addEventListener("change", changeCallback);
 
-      if (onLock) controls.addEventListener("lock", onLock);
-      if (onUnlock) controls.addEventListener("unlock", onUnlock);
+      const onLockCallback = (e: THREE.Event) => {
+        console.log("LOCKED");
+        setIsPointerLocked(true);
+        if (onLock) onLock(e);
+      };
 
+      const onUnlockCallback = (e: THREE.Event) => {
+        console.log("UNLOCKED");
+        setIsPointerLocked(false);
+        if (onUnlock) onUnlock(e);
+      };
+
+      controls.addEventListener("lock", onLockCallback);
+      controls.addEventListener("unlock", onUnlockCallback);
+
+      // console.log("ONCE!!!!!!!!!!!!!!!");
       // Enforce previous interaction
       const handler = () => controls.lock();
-      const elements = selector ? Array.from(document.querySelectorAll(selector)) : [document];
+
+      const elements = selector ? Array.from(document.querySelectorAll(selector)) : [gl.domElement, resumeButtonDom];
       elements.forEach((element) => element && element.addEventListener("click", handler));
 
       return () => {
-        controls.removeEventListener("change", callback);
+        controls.removeEventListener("change", changeCallback);
         if (onLock) controls.addEventListener("lock", onLock);
         if (onUnlock) controls.addEventListener("unlock", onUnlock);
         elements.forEach((element) => (element ? element.removeEventListener("click", handler) : undefined));

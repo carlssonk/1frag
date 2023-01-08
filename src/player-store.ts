@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { PointerLockControls } from "three-stdlib";
 import create from "zustand";
 
 type PlayerState = {

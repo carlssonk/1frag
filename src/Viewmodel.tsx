@@ -17,9 +17,13 @@ export const Viewmodel = () => {
 
   const viewmodelRef = useRef<any>(null!);
 
-  const { scene: object, animations }: any = useLoader(GLTFLoader, "/ar15.glb");
+  const { scene: weapon, animations: weaponAnimations }: any = useLoader(GLTFLoader, "/ar15.glb");
+  const { scene: arms, animations: armsAnimations }: any = useLoader(GLTFLoader, "/arms-512.glb");
   // Keep gun on top of everything else
-  object.children[0].children[1].onBeforeRender = function (renderer: { clearDepth: () => void }) {
+  weapon.children[0].children[1].onBeforeRender = function (renderer: { clearDepth: () => void }) {
+    renderer.clearDepth();
+  };
+  arms.children[0].children[1].onBeforeRender = function (renderer: { clearDepth: () => void }) {
     renderer.clearDepth();
   };
 
@@ -28,7 +32,8 @@ export const Viewmodel = () => {
   const walkThrottle = walk ? 0.5 : 1;
 
   const [store] = useState({
-    mixer: null as THREE.AnimationMixer | null,
+    weaponMixer: null as THREE.AnimationMixer | null,
+    armsMixer: null as THREE.AnimationMixer | null,
     lastShootTimestamp: 0,
     fireRate: 80,
     weaponBobbingAcc: new THREE.Vector3(0, 0, 0), // rotation bobbing
@@ -37,62 +42,39 @@ export const Viewmodel = () => {
   });
 
   useEffect(() => {
-    if (animations) {
-      store.mixer = new THREE.AnimationMixer(object);
-      animations.forEach((clip: any) => {
-        const action = store.mixer!.clipAction(clip);
+    if (weaponAnimations) {
+      store.weaponMixer = new THREE.AnimationMixer(weapon);
+      weaponAnimations.forEach((clip: any) => {
+        const action = store.weaponMixer!.clipAction(clip);
         action.clampWhenFinished = true;
         action.setLoop(THREE.LoopOnce, 0);
         action.play();
       });
     }
-    viewmodelRef.current.defaultPosition = {
-      x: 0,
-      y: 0,
-      z: 0,
-    };
+    if (armsAnimations) {
+      store.armsMixer = new THREE.AnimationMixer(arms);
+      armsAnimations.forEach((clip: any) => {
+        // console.log(clip);
+        const action = store.armsMixer!.clipAction(clip);
+        action.clampWhenFinished = true;
+        action.setLoop(THREE.LoopOnce, 0);
+        action.play();
+      });
+    }
+    // viewmodelRef.current.defaultPosition = {
+    //   x: 0,
+    //   y: 0,
+    //   z: 0,
+    // };
   }, []);
 
   const { mousePrimary } = useViewmodelControls();
 
-  function easeOutExpo(x: number): number {
-    return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
-  }
-
-  function easeInExpo(x: number): number {
-    return x === 0 ? 0 : Math.pow(2, 10 * x - 10);
-  }
-
-  function easeInOutQuad(x: number): number {
-    return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
-  }
-
-  function easeInOutCubic(x: number): number {
-    return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-  }
-
-  function easeInOutSine(x: number): number {
-    return -(Math.cos(Math.PI * x) - 1) / 2;
-  }
-
   useFrame((state, delta) => {
-    const playerMovingVelocity = Math.abs(velocity.x) + Math.abs(velocity.z);
-    // console.log(playerMovingVelocity / 5);
-    // playerMovingVelocity / 5
-    // store.weaponPositionZ = Math.min(1, playerMovingVelocity / 5);
-
-    if (isPlayerMoving && !(rightward && leftward) && !(forward && backward)) {
-      console.log(Math.abs(velocity.x) + Math.abs(velocity.z));
-      store.weaponPositionZ = Math.min(0.01, store.weaponPositionZ + 0.001);
-      console.log(easeInOutSine(store.weaponPositionZ));
-    } else {
-      store.weaponPositionZ = Math.max(0, store.weaponPositionZ - 0.001);
-      console.log(easeInOutSine(store.weaponPositionZ));
-    }
-
     // console.log(velocity);
     const elapsedTime = state.clock.getElapsedTime();
-    store.mixer?.update(delta);
+    store.armsMixer?.update(delta);
+    store.weaponMixer?.update(delta);
     // console.log(mousePrimary);
     if (mousePrimary) {
       // console.log(performance.now() - store.lastShootTimestamp());
@@ -100,7 +82,7 @@ export const Viewmodel = () => {
       // console.log("FIRE RATE");
       if (performance.now() - store.lastShootTimestamp > store.fireRate) {
         //Shoot
-        console.log("SHOOT");
+        // console.log("SHOOT");
 
         // store.shootCooldown = store.fireRate;
         store.lastShootTimestamp = performance.now();
@@ -167,32 +149,21 @@ export const Viewmodel = () => {
     viewmodelRef.current.rotation.y = -store.weaponBobbingAcc.y;
     viewmodelRef.current.rotation.z = -store.weaponBobbingAcc.y;
 
+    const isDrifting = (rightward && leftward) || (forward && backward);
+
     // Z Position
-    // viewmodelRef.current.position.z = easeInOutQuad(store.weaponPositionZ) / 50;
+    if (isPlayerMoving && !isDrifting) {
+      store.weaponPositionZ = Math.min(0.01, store.weaponPositionZ + 0.001);
+    } else {
+      store.weaponPositionZ = Math.max(0, store.weaponPositionZ - 0.001);
+    }
     viewmodelRef.current.position.z = store.weaponPositionZ;
-    // console.log(elapsedTime);
-    // console.log(elapsedTime);
-    // console.log(easeOutExpo(elapsedTime));
-    // viewmodelRef.current.position.z = viewmodelRef.current.position.z + easeOutExpo(viewmodelRef.current.position.z);
-    // Update viewmodel run/walk bobbing
+
+    // Run/walk bobbing
     const moveBobbingPos = () => Math.sin(store.moveBobbing) / MOVE_BOBBING_HEIGHT_THROTTLE;
-    if (isPlayerMoving) {
+    if (isPlayerMoving && !isDrifting) {
       store.moveBobbing = store.moveBobbing + MOVE_BOBBING_SPEED * walkThrottle * delta;
       viewmodelRef.current.position.y = moveBobbingPos();
-
-      // const avgVelocity = Math.abs(velocity.x) + Math.abs(velocity.z);
-      // const offset = avgVelocity / 1000;
-
-      // viewmodelRef.current.position.z = viewmodelRef.current.position.z + Math.sin(elapsedTime / 75) / 500;
-      // viewmodelRef.current.position.z = -store.weaponBobbingAcc.y;
-      // console.log(viewmodelRef.current);
-      // View offset
-      // viewmodelRef.current.position.z = offset;
-      // if (avgVelocity > 5) {
-
-      // } else if (avgVelocity > 1) {
-      // viewmodelRef.current.position.z = viewmodelRef.current.position.z + Math.sin(elapsedTime / 150) / 500;
-      // }
     } else if (viewmodelRef.current.position.y !== 0) {
       store.moveBobbing = store.moveBobbing + MOVE_BOBBING_SPEED * walkThrottle * delta;
 
@@ -216,7 +187,8 @@ export const Viewmodel = () => {
 
   return (
     <group ref={viewmodelRef}>
-      <primitive object={object} position={[0, 0, 0.1]} rotation={[0, Math.PI, 0]} />;
+      <primitive object={weapon} position={[0, 0, 0.1]} rotation={[0, Math.PI, 0]} />;
+      <primitive object={arms} position={[0, 0, 0.1]} rotation={[0, Math.PI, 0]} />;
     </group>
   );
 };
